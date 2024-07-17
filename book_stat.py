@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os
 from collections import OrderedDict
 import csv
+from dateutil.relativedelta import relativedelta
 
 # 다운로드 폴더 경로 설정
 download_folder = 'C:\\Users\\space\\app\\book stat'
@@ -28,20 +29,29 @@ except Exception as e:
 # 읽기 완료 날짜를 datetime 형식으로 변환
 df['end'] = pd.to_datetime(df['end'])
 
+# 날짜 범위 설정 (작년 8월부터 현재까지)
+end_date = pd.Timestamp.now().to_period('M')
+start_date = (end_date - relativedelta(months=11)).to_timestamp()  # 12개월 전의 8월
+date_range = pd.date_range(start_date, end_date, freq='M')
+
 # 월별 데이터 정리 (최신 순으로 정렬)
-monthly_data = df.sort_values('end', ascending=False).groupby(df['end'].dt.to_period('M'))
+monthly_data = df[df['end'] >= start_date].sort_values('end', ascending=False).groupby(df['end'].dt.to_period('M'))
 
 # 이미지 리스트 초기화
 monthly_images = OrderedDict()
 
 # 각 월별 데이터를 반복하면서 이미지를 다운로드하고 저장
-for month, data in monthly_data:
-    images = []
-    for _, row in data.iterrows():
-        response = requests.get(row['coverSmallUrl'])
-        img = Image.open(BytesIO(response.content))
-        images.append(img)
-    monthly_images[str(month)] = images
+for date in date_range:
+    month = date.to_period('M')
+    if month in monthly_data.groups:
+        images = []
+        for _, row in monthly_data.get_group(month).iterrows():
+            response = requests.get(row['coverSmallUrl'])
+            img = Image.open(BytesIO(response.content))
+            images.append(img)
+        monthly_images[str(month)] = images
+    else:
+        monthly_images[str(month)] = []  # 책을 읽지 않은 달은 빈 리스트로 표시
 
 # 이미지 크기 설정
 width, height = 200, 300
@@ -58,7 +68,7 @@ for month, images in monthly_images.items():
     
     # 책 표지 이미지 붙이기 (하단부터 상단으로, 가장 최근 책이 위에 오도록)
     y_offset = total_height - month_label_height - height
-    for img in reversed(images):  # 여기서 reversed를 사용하여 순서를 뒤집습니다
+    for img in reversed(images):
         resized_img = img.resize((width, height))
         combined_image.paste(resized_img, (0, y_offset))
         y_offset -= height
@@ -83,19 +93,19 @@ max_height = max(img.size[1] for img in monthly_combined_images)
 final_image = Image.new('RGB', (total_width, max_height), color='white')
 
 x_offset = 0
-for img in monthly_combined_images:
+for img in reversed(monthly_combined_images):  # 가장 오래된 달이 왼쪽에 오도록 순서 변경
     final_image.paste(img, (x_offset, 0))
     x_offset += width
 
 # 생성된 이미지를 파일로 저장
-output_file_path = os.path.join(download_folder, "all_months_books_stacked_from_bottom_recent_on_top.png")
+output_file_path = os.path.join(download_folder, "books_read_last_12_months.png")
 final_image.save(output_file_path)
 
 # 이미지를 시각화
 plt.figure(figsize=(20, 10))
 plt.imshow(final_image)
 plt.axis('off')
-plt.title("Books Read by Month (Stacked from Bottom, Latest Month at Right, Most Recent on Top)")
+plt.title("Books Read in the Last 12 Months (Oldest Month at Left, Most Recent Books on Top)")
 plt.show()
 
 print(f"이미지가 {output_file_path}에 저장되었습니다.")
