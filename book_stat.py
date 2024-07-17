@@ -25,7 +25,6 @@ except Exception as e:
     print(f"예상치 못한 오류가 발생했습니다: {e}")
     raise
 
-
 # 읽기 완료 날짜를 datetime 형식으로 변환
 df['end'] = pd.to_datetime(df['end'])
 
@@ -46,7 +45,7 @@ for month, data in monthly_data:
 
 # 이미지 크기 설정
 width, height = 200, 300
-month_label_height = 50  # 월과 책 권수를 표시하기 위해 높이를 늘림
+month_label_height = 50  # 월과 책 권수를 표시하기 위한 높이
 
 # 월별 이미지 생성
 monthly_combined_images = []
@@ -54,21 +53,22 @@ for month, images in monthly_images.items():
     total_height = height * len(images) + month_label_height
     combined_image = Image.new('RGB', (width, total_height), color='white')
     
-    # 월 및 책 권수 표시 (상단에)
+    # 책 표지 이미지 붙이기 (하단부터)
+    y_offset = 0
+    for img in reversed(images):
+        resized_img = img.resize((width, height))
+        combined_image.paste(resized_img, (0, y_offset))
+        y_offset += height
+    
+    # 월 및 책 권수 표시 (하단에)
     draw = ImageDraw.Draw(combined_image)
     font = ImageFont.load_default()
     month_text = f"{month} - {len(images)} books"
     text_bbox = draw.textbbox((0, 0), month_text, font=font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
-    draw.text(((width - text_width) / 2, (month_label_height - text_height) / 2), month_text, fill='black', font=font)
-    
-    # 책 표지 이미지 붙이기 (상단부터)
-    y_offset = month_label_height
-    for img in images:
-        resized_img = img.resize((width, height))
-        combined_image.paste(resized_img, (0, y_offset))
-        y_offset += height
+    draw.text(((width - text_width) / 2, total_height - month_label_height + (month_label_height - text_height) / 2), 
+              month_text, fill='black', font=font)
     
     monthly_combined_images.append(combined_image)
 
@@ -85,14 +85,14 @@ for img in monthly_combined_images:
     x_offset += width
 
 # 생성된 이미지를 파일로 저장
-output_file_path = os.path.join(download_folder, "all_months_books_labeled_with_counts.png")
+output_file_path = os.path.join(download_folder, "all_months_books_labeled_with_counts_bottom.png")
 final_image.save(output_file_path)
 
 # 이미지를 시각화
 plt.figure(figsize=(20, 10))
 plt.imshow(final_image)
 plt.axis('off')
-plt.title("Books Read by Month (Most Recent at Top)")
+plt.title("Books Read by Month (Most Recent at Left)")
 plt.show()
 
 print(f"이미지가 {output_file_path}에 저장되었습니다.")
