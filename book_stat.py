@@ -8,7 +8,7 @@ from collections import OrderedDict
 import csv
 
 # 다운로드 폴더 경로 설정
-download_folder = 'C:\\Users\\space\\Downloads'
+download_folder = 'C:\\Users\\space\\app\\book stat'
 csv_file_path = os.path.join(download_folder, 'books_data1.csv')
 
 # CSV 파일 읽기
