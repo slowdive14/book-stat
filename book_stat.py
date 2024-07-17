@@ -5,6 +5,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import os
 from collections import OrderedDict
+from dateutil.relativedelta import relativedelta
 import pytz
 
 # 다운로드 폴더 경로 설정
@@ -30,7 +31,7 @@ df['end'] = pd.to_datetime(df['end'], utc=True).dt.tz_convert('Asia/Seoul')
 # 날짜 범위 설정 (2023년 8월부터 현재까지)
 seoul_tz = pytz.timezone('Asia/Seoul')
 start_date = pd.Timestamp(year=2023, month=8, day=1, tz=seoul_tz)
-end_date = pd.Timestamp.now(tz=seoul_tz)
+end_date = pd.Timestamp.now(tz=seoul_tz) + relativedelta(months=1)
 date_range = pd.date_range(start_date, end_date, freq='M', tz=seoul_tz)
 
 # 월별 데이터 정리 (최신 순으로 정렬)
