@@ -47,18 +47,21 @@ for month, data in monthly_data:
 width, height = 200, 300
 month_label_height = 50  # 월과 책 권수를 표시하기 위한 높이
 
+# 최대 책 수 찾기
+max_books = max(len(images) for images in monthly_images.values())
+
 # 월별 이미지 생성
 monthly_combined_images = []
 for month, images in monthly_images.items():
-    total_height = height * len(images) + month_label_height
+    total_height = height * max_books + month_label_height
     combined_image = Image.new('RGB', (width, total_height), color='white')
     
-    # 책 표지 이미지 붙이기 (하단부터)
-    y_offset = 0
-    for img in reversed(images):
+    # 책 표지 이미지 붙이기 (하단부터 상단으로, 가장 최근 책이 위에 오도록)
+    y_offset = total_height - month_label_height - height
+    for img in reversed(images):  # 여기서 reversed를 사용하여 순서를 뒤집습니다
         resized_img = img.resize((width, height))
         combined_image.paste(resized_img, (0, y_offset))
-        y_offset += height
+        y_offset -= height
     
     # 월 및 책 권수 표시 (하단에)
     draw = ImageDraw.Draw(combined_image)
@@ -85,14 +88,14 @@ for img in monthly_combined_images:
     x_offset += width
 
 # 생성된 이미지를 파일로 저장
-output_file_path = os.path.join(download_folder, "all_months_books_labeled_with_counts_bottom.png")
+output_file_path = os.path.join(download_folder, "all_months_books_stacked_from_bottom_recent_on_top.png")
 final_image.save(output_file_path)
 
 # 이미지를 시각화
 plt.figure(figsize=(20, 10))
 plt.imshow(final_image)
 plt.axis('off')
-plt.title("Books Read by Month (Most Recent at Left)")
+plt.title("Books Read by Month (Stacked from Bottom, Latest Month at Right, Most Recent on Top)")
 plt.show()
 
 print(f"이미지가 {output_file_path}에 저장되었습니다.")
