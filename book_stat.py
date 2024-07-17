@@ -5,19 +5,17 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import os
 from collections import OrderedDict
-import csv
-from dateutil.relativedelta import relativedelta
+import pytz
 
 # 다운로드 폴더 경로 설정
 download_folder = 'C:\\Users\\space\\app\\book stat'
-csv_file_path = os.path.join(download_folder, 'books_data1.csv')
+csv_file_path = 'C:\\Users\\space\\app\\book stat\\books_data1.csv'
 
 # CSV 파일 읽기
 try:
-    df = pd.read_csv(csv_file_path, quoting=csv.QUOTE_ALL, escapechar='\\')
+    df = pd.read_csv(csv_file_path)
 except pd.errors.ParserError as e:
     print(f"CSV 파일을 읽는 중에 오류가 발생했습니다: {e}")
-    print("CSV 파일의 형식을 확인하고, 필요하다면 수동으로 수정해주세요.")
     raise
 except FileNotFoundError as e:
     print(f"CSV 파일이 경로에 없습니다: {csv_file_path}")
@@ -26,13 +24,14 @@ except Exception as e:
     print(f"예상치 못한 오류가 발생했습니다: {e}")
     raise
 
-# 읽기 완료 날짜를 datetime 형식으로 변환
-df['end'] = pd.to_datetime(df['end'])
+# 읽기 완료 날짜를 datetime 형식으로 변환하고 시간대 설정
+df['end'] = pd.to_datetime(df['end'], utc=True).dt.tz_convert('Asia/Seoul')
 
-# 날짜 범위 설정 (작년 8월부터 현재까지)
-end_date = pd.Timestamp.now().to_period('M')
-start_date = (end_date - relativedelta(months=11)).to_timestamp()  # 12개월 전의 8월
-date_range = pd.date_range(start_date, end_date, freq='M')
+# 날짜 범위 설정 (2023년 8월부터 현재까지)
+seoul_tz = pytz.timezone('Asia/Seoul')
+start_date = pd.Timestamp(year=2023, month=8, day=1, tz=seoul_tz)
+end_date = pd.Timestamp.now(tz=seoul_tz)
+date_range = pd.date_range(start_date, end_date, freq='M', tz=seoul_tz)
 
 # 월별 데이터 정리 (최신 순으로 정렬)
 monthly_data = df[df['end'] >= start_date].sort_values('end', ascending=False).groupby(df['end'].dt.to_period('M'))
@@ -93,19 +92,19 @@ max_height = max(img.size[1] for img in monthly_combined_images)
 final_image = Image.new('RGB', (total_width, max_height), color='white')
 
 x_offset = 0
-for img in reversed(monthly_combined_images):  # 가장 오래된 달이 왼쪽에 오도록 순서 변경
+for img in monthly_combined_images:  # 최신 달이 오른쪽에 오도록 순서 변경
     final_image.paste(img, (x_offset, 0))
     x_offset += width
 
 # 생성된 이미지를 파일로 저장
-output_file_path = os.path.join(download_folder, "books_read_last_12_months.png")
+output_file_path = os.path.join(download_folder, "books_read_since_aug_2023.png")
 final_image.save(output_file_path)
 
 # 이미지를 시각화
 plt.figure(figsize=(20, 10))
 plt.imshow(final_image)
 plt.axis('off')
-plt.title("Books Read in the Last 12 Months (Oldest Month at Left, Most Recent Books on Top)")
+plt.title("Books Read Since August 2023 (Oldest Month at Left, Most Recent Books on Top)")
 plt.show()
 
 print(f"이미지가 {output_file_path}에 저장되었습니다.")
