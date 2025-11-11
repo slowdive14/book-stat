@@ -128,9 +128,12 @@ function findDailyNote(year) {
     return { path: null, dayOfWeek: weekDays[dayOfWeek] };
 }
 
-// 3열 그리드 레이아웃 시작
-dv.paragraph(`
-<style>
+// 3열 그리드 레이아웃 생성
+const container = dv.container;
+
+// 스타일 추가
+const style = container.createEl('style');
+style.textContent = `
 .daily-comparison-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -172,26 +175,43 @@ dv.paragraph(`
         grid-template-columns: 1fr;
     }
 }
-</style>
+`;
 
-<div class="daily-comparison-grid">
-`);
+// 그리드 컨테이너 생성
+const grid = container.createEl('div', { cls: 'daily-comparison-grid' });
 
 // 각 연도별로 열 생성
 for (const year of years) {
     const result = findDailyNote(year);
 
-    dv.paragraph(`<div class="daily-comparison-column">`);
-    dv.paragraph(`<div class="daily-comparison-header">📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${result.dayOfWeek})</div>`);
+    // 열 div 생성
+    const column = grid.createEl('div', { cls: 'daily-comparison-column' });
+
+    // 헤더 생성
+    column.createEl('div', {
+        cls: 'daily-comparison-header',
+        text: `📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${result.dayOfWeek})`
+    });
+
+    // 내용 영역
+    const contentDiv = column.createEl('div');
 
     if (result.path) {
-        dv.paragraph(`![[${result.path}]]`);
+        // 마크다운 임베드 문법 사용
+        const embedMarkdown = `![[${result.path}]]`;
+
+        // MarkdownRenderer를 사용하여 렌더링
+        app.plugins.plugins.dataview.api.markdownRender(
+            embedMarkdown,
+            contentDiv,
+            result.path,
+            dv.component
+        );
     } else {
-        dv.paragraph(`<div class="daily-comparison-no-note">이 날짜의 일간노트가 없습니다.</div>`);
+        contentDiv.createEl('div', {
+            cls: 'daily-comparison-no-note',
+            text: '이 날짜의 일간노트가 없습니다.'
+        });
     }
-
-    dv.paragraph(`</div>`);
 }
-
-dv.paragraph(`</div>`);
 ```
