@@ -136,9 +136,10 @@ const style = container.createEl('style');
 style.textContent = `
 .daily-comparison-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 15px;
     margin-top: 20px;
+    width: 100%;
 }
 
 .daily-comparison-column {
@@ -148,6 +149,7 @@ style.textContent = `
     background: var(--background-secondary);
     overflow-y: auto;
     max-height: 80vh;
+    min-width: 0;
 }
 
 .daily-comparison-header {
@@ -169,13 +171,10 @@ style.textContent = `
     text-align: center;
     padding: 20px;
 }
-
-@media (max-width: 1200px) {
-    .daily-comparison-grid {
-        grid-template-columns: 1fr;
-    }
-}
 `;
+
+// 디버깅: Grid 생성 확인
+dv.paragraph(`<div style="background: #ffeb3b; padding: 5px; margin: 10px 0;">🔍 디버그: 3열 그리드를 생성합니다...</div>`);
 
 // 그리드 컨테이너 생성
 const grid = container.createEl('div', { cls: 'daily-comparison-grid' });
