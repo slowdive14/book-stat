@@ -15,16 +15,29 @@ date: 2024-03-15
 // 방법 3: 아무것도 안 하면 오늘 날짜 사용
 
 let today;
+let dateSource = "오늘";
+
 if (typeof targetDate !== 'undefined') {
     // 방법 1: 코드에서 직접 지정한 날짜 사용
     today = targetDate;
+    dateSource = "코드에서 지정";
 } else if (dv.current().date) {
     // 방법 2: 프론트매터에서 date 필드 읽기
     today = moment(dv.current().date);
+    dateSource = "프론트매터 (date)";
+} else if (dv.current().created) {
+    // 대안: created 필드 시도
+    today = moment(dv.current().created);
+    dateSource = "프론트매터 (created)";
 } else {
     // 방법 3: 오늘 날짜 사용
     today = moment();
+    dateSource = "오늘";
 }
+
+// 디버깅: 사용 중인 날짜 표시
+dv.paragraph(`🔍 **비교 날짜**: ${today.format('YYYY년 MM월 DD일')} (${dateSource})`);
+dv.paragraph("---");
 
 const month = today.format('MM');
 const monthNoZero = today.format('M');
