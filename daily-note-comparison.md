@@ -201,13 +201,23 @@ for (const year of years) {
         if (file) {
             const content = await app.vault.read(file);
 
-            // Obsidian API를 통한 마크다운 렌더링
-            await app.workspace.activeLeaf.view.renderer.renderMarkdown(
-                content,
-                contentDiv,
-                result.path,
-                dv.component
-            );
+            // 간단한 마크다운 -> HTML 변환
+            let html = content
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            html = '<p>' + html + '</p>';
+
+            // HTML 삽입
+            contentDiv.innerHTML = html;
         }
     } else {
         contentDiv.createEl('div', {
