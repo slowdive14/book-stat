@@ -196,13 +196,13 @@ for (const year of years) {
     const contentDiv = column.createEl('div');
 
     if (result.path) {
-        // 노트 파일 읽기 및 렌더링
+        // 노트 파일 읽기
         const file = app.vault.getAbstractFileByPath(result.path);
         if (file) {
             const content = await app.vault.read(file);
 
-            // Obsidian API의 MarkdownRenderer 사용
-            MarkdownRenderer.renderMarkdown(
+            // Obsidian API를 통한 마크다운 렌더링
+            await app.workspace.activeLeaf.view.renderer.renderMarkdown(
                 content,
                 contentDiv,
                 result.path,
