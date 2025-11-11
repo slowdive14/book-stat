@@ -47,14 +47,23 @@ if (typeof targetDate !== 'undefined') {
     debugInfo = `코드: ${targetDate.format('YYYY-MM-DD')}`;
 } else if (hasDateField) {
     // 방법 2: 프론트매터에서 date 필드 읽기
-    today = moment(frontmatter.date);
+    // DateTime 객체인 경우 문자열로 변환
+    let dateValue = frontmatter.date;
+    if (typeof dateValue === 'object' && dateValue.toString) {
+        dateValue = dateValue.toString().split('T')[0]; // ISO 형식에서 날짜 부분만 추출
+    }
+    today = moment(dateValue);
     dateSource = "프론트매터 (date)";
-    debugInfo = `프론트매터 date: ${frontmatter.date} (타입: ${typeof frontmatter.date})`;
+    debugInfo = `프론트매터 date: ${dateValue} (원본: ${frontmatter.date})`;
 } else if (hasCreatedField) {
     // 대안: created 필드 시도
-    today = moment(frontmatter.created);
+    let createdValue = frontmatter.created;
+    if (typeof createdValue === 'object' && createdValue.toString) {
+        createdValue = createdValue.toString().split('T')[0];
+    }
+    today = moment(createdValue);
     dateSource = "프론트매터 (created)";
-    debugInfo = `프론트매터 created: ${frontmatter.created} (타입: ${typeof frontmatter.created})`;
+    debugInfo = `프론트매터 created: ${createdValue} (원본: ${frontmatter.created})`;
 } else {
     // 방법 3: 오늘 날짜 사용
     today = moment();

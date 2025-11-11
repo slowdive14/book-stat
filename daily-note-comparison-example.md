@@ -20,8 +20,19 @@ let debugInfo = "";
 
 // 프론트매터에서 명시적으로 작성된 필드만 읽기
 const frontmatter = dv.current();
-const hasDateField = frontmatter.date && typeof frontmatter.date === 'string';
-const hasCreatedField = frontmatter.created && typeof frontmatter.created === 'string';
+
+// Dataview는 날짜를 자동으로 파싱할 수 있으므로 moment 객체인지도 확인
+const hasDateField = frontmatter.date && (
+    typeof frontmatter.date === 'string' ||
+    frontmatter.date.constructor.name === 'DateTime' ||
+    moment.isMoment(frontmatter.date)
+);
+
+const hasCreatedField = frontmatter.created && (
+    typeof frontmatter.created === 'string' ||
+    frontmatter.created.constructor.name === 'DateTime' ||
+    moment.isMoment(frontmatter.created)
+);
 
 if (typeof targetDate !== 'undefined') {
     // 방법 1: 코드에서 직접 지정한 날짜 사용
@@ -29,15 +40,24 @@ if (typeof targetDate !== 'undefined') {
     dateSource = "코드에서 지정";
     debugInfo = `코드: ${targetDate.format('YYYY-MM-DD')}`;
 } else if (hasDateField) {
-    // 방법 2: 프론트매터에서 date 필드 읽기 (문자열로 명시된 경우만)
-    today = moment(frontmatter.date);
+    // 방법 2: 프론트매터에서 date 필드 읽기
+    // DateTime 객체인 경우 문자열로 변환
+    let dateValue = frontmatter.date;
+    if (typeof dateValue === 'object' && dateValue.toString) {
+        dateValue = dateValue.toString().split('T')[0]; // ISO 형식에서 날짜 부분만 추출
+    }
+    today = moment(dateValue);
     dateSource = "프론트매터 (date)";
-    debugInfo = `프론트매터 date: ${frontmatter.date}`;
+    debugInfo = `프론트매터 date: ${dateValue} (원본: ${frontmatter.date})`;
 } else if (hasCreatedField) {
-    // 대안: created 필드 시도 (문자열로 명시된 경우만)
-    today = moment(frontmatter.created);
+    // 대안: created 필드 시도
+    let createdValue = frontmatter.created;
+    if (typeof createdValue === 'object' && createdValue.toString) {
+        createdValue = createdValue.toString().split('T')[0];
+    }
+    today = moment(createdValue);
     dateSource = "프론트매터 (created)";
-    debugInfo = `프론트매터 created: ${frontmatter.created}`;
+    debugInfo = `프론트매터 created: ${createdValue} (원본: ${frontmatter.created})`;
 } else {
     // 방법 3: 오늘 날짜 사용
     today = moment();
