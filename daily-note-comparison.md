@@ -197,16 +197,19 @@ for (const year of years) {
     const contentDiv = column.createEl('div');
 
     if (result.path) {
-        // 마크다운 임베드 문법 사용
-        const embedMarkdown = `![[${result.path}]]`;
+        // 노트 파일 읽기 및 렌더링
+        const file = app.vault.getAbstractFileByPath(result.path);
+        if (file) {
+            const content = await app.vault.read(file);
 
-        // MarkdownRenderer를 사용하여 렌더링
-        app.plugins.plugins.dataview.api.markdownRender(
-            embedMarkdown,
-            contentDiv,
-            result.path,
-            dv.component
-        );
+            // Obsidian API의 MarkdownRenderer 사용
+            MarkdownRenderer.renderMarkdown(
+                content,
+                contentDiv,
+                result.path,
+                dv.component
+            );
+        }
     } else {
         contentDiv.createEl('div', {
             cls: 'daily-comparison-no-note',
