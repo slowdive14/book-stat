@@ -3,12 +3,10 @@
 ```dataviewjs
 // 오늘 날짜 가져오기
 const today = moment();
-const year = today.format('YYYY');
 const month = today.format('MM');
 const monthNoZero = today.format('M');
 const day = today.format('DD');
 const dayNoZero = today.format('D');
-const dayOfWeek = today.format('ddd'); // 요일 (월, 화, 수, 목, 금, 토, 일)
 
 // 비교할 연도들
 const years = [2025, 2024, 2023];
@@ -22,6 +20,10 @@ const weekDays = {
 // 각 연도별로 노트 찾기 함수
 function findDailyNote(year) {
     const baseFolder = "일간노트";
+
+    // 해당 연도의 같은 날짜로 moment 객체 생성 (요일 계산을 위해)
+    const targetDate = moment(`${year}-${month}-${day}`, 'YYYY-MM-DD');
+    const dayOfWeek = targetDate.format('ddd');
 
     // 가능한 폴더 패턴들
     const folderPatterns = [
@@ -45,24 +47,24 @@ function findDailyNote(year) {
             const path = `${folder}/${fileName}`;
             const file = app.vault.getAbstractFileByPath(path);
             if (file) {
-                return path;
+                return { path, dayOfWeek: weekDays[dayOfWeek] };
             }
         }
     }
 
-    return null;
+    return { path: null, dayOfWeek: weekDays[dayOfWeek] };
 }
 
 // 각 연도별로 노트 표시
 for (const year of years) {
-    const notePath = findDailyNote(year);
+    const result = findDailyNote(year);
 
     // 섹션 헤더
-    dv.header(3, `📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${weekDays[dayOfWeek]})`);
+    dv.header(3, `📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${result.dayOfWeek})`);
 
-    if (notePath) {
+    if (result.path) {
         // 노트 내용 임베드
-        dv.paragraph(`![[${notePath}]]`);
+        dv.paragraph(`![[${result.path}]]`);
     } else {
         dv.paragraph(`> 이 날짜의 일간노트가 없습니다.`);
     }
