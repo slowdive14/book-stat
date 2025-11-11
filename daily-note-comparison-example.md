@@ -122,22 +122,72 @@ function findDailyNote(year) {
     return { path: null, dayOfWeek: weekDays[dayOfWeek] };
 }
 
-// 각 연도별로 노트 표시
+// 3열 그리드 레이아웃 시작
+dv.paragraph(`
+<style>
+.daily-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.daily-comparison-column {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 15px;
+    background: var(--background-secondary);
+    overflow-y: auto;
+    max-height: 80vh;
+}
+
+.daily-comparison-header {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-accent);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--background-modifier-border);
+    position: sticky;
+    top: 0;
+    background: var(--background-secondary);
+    z-index: 10;
+}
+
+.daily-comparison-no-note {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+@media (max-width: 1200px) {
+    .daily-comparison-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="daily-comparison-grid">
+`);
+
+// 각 연도별로 열 생성
 for (const year of years) {
     const result = findDailyNote(year);
 
-    // 섹션 헤더
-    dv.header(3, `📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${result.dayOfWeek})`);
+    dv.paragraph(`<div class="daily-comparison-column">`);
+    dv.paragraph(`<div class="daily-comparison-header">📅 ${year}년 ${monthNoZero}월 ${dayNoZero}일 (${result.dayOfWeek})</div>`);
 
     if (result.path) {
-        // 노트 내용 임베드
         dv.paragraph(`![[${result.path}]]`);
     } else {
-        dv.paragraph(`> 이 날짜의 일간노트가 없습니다.`);
+        dv.paragraph(`<div class="daily-comparison-no-note">이 날짜의 일간노트가 없습니다.</div>`);
     }
 
-    dv.paragraph("---");
+    dv.paragraph(`</div>`);
 }
+
+dv.paragraph(`</div>`);
 ```
 
 ## 날짜 변경하는 방법
