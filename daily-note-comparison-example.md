@@ -16,27 +16,38 @@ date: 2024-03-15
 
 let today;
 let dateSource = "오늘";
+let debugInfo = "";
+
+// 프론트매터에서 명시적으로 작성된 필드만 읽기
+const frontmatter = dv.current();
+const hasDateField = frontmatter.date && typeof frontmatter.date === 'string';
+const hasCreatedField = frontmatter.created && typeof frontmatter.created === 'string';
 
 if (typeof targetDate !== 'undefined') {
     // 방법 1: 코드에서 직접 지정한 날짜 사용
     today = targetDate;
     dateSource = "코드에서 지정";
-} else if (dv.current().date) {
-    // 방법 2: 프론트매터에서 date 필드 읽기
-    today = moment(dv.current().date);
+    debugInfo = `코드: ${targetDate.format('YYYY-MM-DD')}`;
+} else if (hasDateField) {
+    // 방법 2: 프론트매터에서 date 필드 읽기 (문자열로 명시된 경우만)
+    today = moment(frontmatter.date);
     dateSource = "프론트매터 (date)";
-} else if (dv.current().created) {
-    // 대안: created 필드 시도
-    today = moment(dv.current().created);
+    debugInfo = `프론트매터 date: ${frontmatter.date}`;
+} else if (hasCreatedField) {
+    // 대안: created 필드 시도 (문자열로 명시된 경우만)
+    today = moment(frontmatter.created);
     dateSource = "프론트매터 (created)";
+    debugInfo = `프론트매터 created: ${frontmatter.created}`;
 } else {
     // 방법 3: 오늘 날짜 사용
     today = moment();
     dateSource = "오늘";
+    debugInfo = "프론트매터 없음, 오늘 날짜 사용";
 }
 
-// 디버깅: 사용 중인 날짜 표시
+// 디버깅: 사용 중인 날짜와 상세 정보 표시
 dv.paragraph(`🔍 **비교 날짜**: ${today.format('YYYY년 MM월 DD일')} (${dateSource})`);
+dv.paragraph(`<small style="color: var(--text-muted);">디버그: ${debugInfo}</small>`);
 dv.paragraph("---");
 
 const month = today.format('MM');
