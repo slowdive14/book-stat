@@ -133,28 +133,32 @@ async function findDailyNote(year) {
         const file = app.vault.getAbstractFileByPath(jsonFilePath);
 
         if (file) {
-            const content = await app.vault.read(file);
+            let content = await app.vault.read(file);
 
             console.log(`[${year}] 파일 읽기 성공, 길이: ${content.length}`);
 
-            // 1단계: 마크다운 헤더와 구분선 제거
+            // 1단계: Frontmatter 제거 (--- 사이의 내용)
+            content = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/m, '');
+
+            // 2단계: 마크다운 헤더와 구분선 제거, JSON만 추출
             let cleanedContent = content
                 .split('\n')
                 .filter(line => {
                     const trimmed = line.trim();
+                    // 빈 줄, #헤더, ---구분선, YAML 필드 모두 제거
                     return trimmed &&
                            !trimmed.startsWith('#') &&
-                           !trimmed.match(/^-+$/);
+                           !trimmed.match(/^-+$/) &&
+                           !trimmed.match(/^[a-z_]+:/);  // created:, updated: 등
                 })
                 .join('');  // 줄바꿈 없이 합치기
 
             console.log(`[${year}] 정리 후 길이: ${cleanedContent.length}`);
 
-            // 2단계: }{ 패턴을 },{ 로 교체하여 유효한 JSON 배열 생성
+            // 3단계: }{ 패턴을 },{ 로 교체하여 유효한 JSON 배열 생성
             const jsonArray = '[' + cleanedContent.replace(/\}\s*\{/g, '},{') + ']';
 
             console.log(`[${year}] JSON 배열 생성, 길이: ${jsonArray.length}`);
-            console.log(`[${year}] 첫 500자: ${jsonArray.substring(0, 500)}`);
 
             try {
                 const entries = JSON.parse(jsonArray);
@@ -176,7 +180,9 @@ async function findDailyNote(year) {
                 }
             } catch (e) {
                 console.error(`[${year}] ❌ JSON 파싱 실패:`, e.message);
-                console.error(`[${year}] 첫 1000자:`, jsonArray.substring(0, 1000));
+                console.error(`[${year}] 에러 위치 근처 (±100자):`,
+                    jsonArray.substring(Math.max(0, e.message.match(/\d+/)?.[0] - 100),
+                                       parseInt(e.message.match(/\d+/)?.[0] || 0) + 100));
             }
         } else {
             console.warn(`[${year}] ⚠️ 파일 없음: ${jsonFilePath}`);
