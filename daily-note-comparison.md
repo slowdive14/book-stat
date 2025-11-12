@@ -235,7 +235,7 @@ style.textContent = `
 `;
 
 // 디버깅: Grid 생성 확인
-dv.paragraph(`<div style="background: #ffeb3b; padding: 5px; margin: 10px 0;">🔍 디버그: 3열 그리드를 생성합니다...</div>`);
+dv.paragraph(`<div style="background: #3a3a2e; color: #d4a574; padding: 5px; margin: 10px 0; border-left: 3px solid #8b7355;">🔍 디버그: 3열 그리드를 생성합니다...</div>`);
 
 // 그리드 컨테이너 생성
 const grid = container.createEl('div', { cls: 'daily-comparison-grid' });
