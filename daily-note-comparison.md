@@ -135,12 +135,17 @@ async function findDailyNote(year) {
         if (file) {
             const content = await app.vault.read(file);
 
-            // 월 헤더 제거 및 공백 정리
+            // 라인 단위로 처리하여 JSON 객체만 추출
             let cleanedContent = content
-                .replace(/^##.*$/gm, '')     // 월 헤더 제거 (## 3월)
-                .replace(/^\s*$/gm, '')      // 빈 줄 제거
-                .replace(/^---$/gm, '')      // 구분선 제거 (---)
-                .trim();
+                .split('\n')
+                .map(line => line.trim())  // 각 줄의 앞뒤 공백 제거
+                .filter(line => {
+                    // 빈 줄, 월 헤더(##), 구분선(---) 제거
+                    return line &&
+                           !line.startsWith('##') &&
+                           !line.match(/^-+$/);  // 하이픈만 있는 줄
+                })
+                .join('');  // 줄바꿈 없이 합치기
 
             // JSON 객체들 분리 (} { 사이에 공백이나 줄바꿈이 있어도 처리)
             const jsonArray = '[' + cleanedContent.replace(/\}\s*\{/g, '},{') + ']';
@@ -159,7 +164,7 @@ async function findDailyNote(year) {
                 }
             } catch (e) {
                 console.error('JSON parsing error for', year, ':', e);
-                console.error('Tried to parse:', jsonArray.substring(0, 200) + '...');
+                console.error('Tried to parse:', jsonArray.substring(0, 300) + '...');
             }
         }
     }
