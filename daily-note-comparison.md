@@ -140,23 +140,20 @@ async function findDailyNote(year) {
             // 1단계: Frontmatter 제거 (--- 사이의 내용)
             content = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/m, '');
 
-            // 2단계: 마크다운 헤더와 구분선 제거, JSON만 추출
-            let cleanedContent = content
-                .split('\n')
-                .filter(line => {
-                    const trimmed = line.trim();
-                    // 빈 줄, #헤더, ---구분선, YAML 필드 모두 제거
-                    return trimmed &&
-                           !trimmed.startsWith('#') &&
-                           !trimmed.match(/^-+$/) &&
-                           !trimmed.match(/^[a-z_]+:/);  // created:, updated: 등
-                })
-                .join('');  // 줄바꿈 없이 합치기
+            // 2단계: 정규식으로 JSON 객체만 추출
+            // {"created_at":...,"date_key":"...","text":"...","type":...} 패턴 찾기
+            const jsonObjectPattern = /\{"created_at":\d+,"date_key":"[^"]+","text":"[^"]*(?:\\.[^"]*)*","type":\d+\}/g;
+            const jsonObjects = content.match(jsonObjectPattern);
 
-            console.log(`[${year}] 정리 후 길이: ${cleanedContent.length}`);
+            if (!jsonObjects || jsonObjects.length === 0) {
+                console.warn(`[${year}] JSON 객체를 찾을 수 없음`);
+                return { path: null, text: null, dayOfWeek: weekDays[dayOfWeek] };
+            }
 
-            // 3단계: }{ 패턴을 },{ 로 교체하여 유효한 JSON 배열 생성
-            const jsonArray = '[' + cleanedContent.replace(/\}\s*\{/g, '},{') + ']';
+            console.log(`[${year}] JSON 객체 수: ${jsonObjects.length}`);
+
+            // 3단계: JSON 배열 생성
+            const jsonArray = '[' + jsonObjects.join(',') + ']';
 
             console.log(`[${year}] JSON 배열 생성, 길이: ${jsonArray.length}`);
 
@@ -180,8 +177,8 @@ async function findDailyNote(year) {
                 }
             } catch (e) {
                 console.error(`[${year}] ❌ JSON 파싱 실패:`, e.message);
-                console.error(`[${year}] 에러 위치 근처 (±100자):`,
-                    jsonArray.substring(Math.max(0, e.message.match(/\d+/)?.[0] - 100),
+                console.error(`[${year}] 에러 위치 근처:`,
+                    jsonArray.substring(Math.max(0, (e.message.match(/\d+/)?.[0] || 0) - 100),
                                        parseInt(e.message.match(/\d+/)?.[0] || 0) + 100));
             }
         } else {
