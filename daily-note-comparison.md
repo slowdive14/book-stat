@@ -82,7 +82,7 @@ const day = today.format('DD');
 const dayNoZero = today.format('D');
 
 // 비교할 연도들
-const years = [2025, 2024, 2023];
+const years = [2025, 2024, 2023, 2022, 2021, 2020];
 
 // 요일 매핑 (영어 -> 한글)
 const weekDays = {
@@ -91,41 +91,75 @@ const weekDays = {
 };
 
 // 각 연도별로 노트 찾기 함수
-function findDailyNote(year) {
+async function findDailyNote(year) {
     const baseFolder = "일간노트";
 
     // 해당 연도의 같은 날짜로 moment 객체 생성 (요일 계산을 위해)
     const targetDate = moment(`${year}-${month}-${day}`, 'YYYY-MM-DD');
     const dayOfWeek = targetDate.format('ddd');
 
-    // 가능한 폴더 패턴들
-    const folderPatterns = [
-        `${baseFolder}/${year}년/${monthNoZero}월`,    // 일간노트/2024년/1월
-        `${baseFolder}/${year}년/${month}월`,           // 일간노트/2024년/01월
-        `${baseFolder}/${year}년/${year}년 ${monthNoZero}월`, // 일간노트/2025년/2025년 1월
-        `${baseFolder}/${year}년`,                      // 일간노트/2024년
-    ];
+    // 2023년 이상: 마크다운 파일 찾기
+    if (year >= 2023) {
+        // 가능한 폴더 패턴들
+        const folderPatterns = [
+            `${baseFolder}/${year}년/${monthNoZero}월`,
+            `${baseFolder}/${year}년/${month}월`,
+            `${baseFolder}/${year}년/${year}년 ${monthNoZero}월`,
+            `${baseFolder}/${year}년`,
+        ];
 
-    // 가능한 파일명 패턴들
-    const filePatterns = [
-        `${year}${month}${day}.md`,                     // 20240120.md
-        `${year}${month}${day}${weekDays[dayOfWeek]}.md`, // 20240120월.md
-        `${year}-${month}-${day}.md`,                   // 2024-01-20.md
-        `${year}-${month}-${day}${weekDays[dayOfWeek]}.md`, // 2024-01-20월.md
-    ];
+        // 가능한 파일명 패턴들
+        const filePatterns = [
+            `${year}${month}${day}.md`,
+            `${year}${month}${day}${weekDays[dayOfWeek]}.md`,
+            `${year}-${month}-${day}.md`,
+            `${year}-${month}-${day}${weekDays[dayOfWeek]}.md`,
+        ];
 
-    // 모든 조합 시도
-    for (const folder of folderPatterns) {
-        for (const fileName of filePatterns) {
-            const path = `${folder}/${fileName}`;
-            const file = app.vault.getAbstractFileByPath(path);
-            if (file) {
-                return { path, dayOfWeek: weekDays[dayOfWeek] };
+        // 모든 조합 시도
+        for (const folder of folderPatterns) {
+            for (const fileName of filePatterns) {
+                const path = `${folder}/${fileName}`;
+                const file = app.vault.getAbstractFileByPath(path);
+                if (file) {
+                    return { path, text: null, dayOfWeek: weekDays[dayOfWeek] };
+                }
+            }
+        }
+    }
+    // 2022년 이하: JSON 파일에서 찾기
+    else {
+        const jsonFilePath = `${baseFolder}/2022년 이전/${year}.md`;
+        const file = app.vault.getAbstractFileByPath(jsonFilePath);
+
+        if (file) {
+            const content = await app.vault.read(file);
+
+            // 월 헤더 제거 (## 3월 같은 것들)
+            const cleanedContent = content.replace(/^##.*$/gm, '').trim();
+
+            // JSON 객체들 분리 (}{를 },{ 로 변환 후 배열로)
+            const jsonArray = '[' + cleanedContent.replace(/\}\{/g, '},{') + ']';
+
+            try {
+                const entries = JSON.parse(jsonArray);
+                const dateKey = `${year}${month}${day}`;
+                const entry = entries.find(e => e.date_key === dateKey);
+
+                if (entry) {
+                    return {
+                        path: null,
+                        text: entry.text,
+                        dayOfWeek: weekDays[dayOfWeek]
+                    };
+                }
+            } catch (e) {
+                console.error('JSON parsing error for', year, ':', e);
             }
         }
     }
 
-    return { path: null, dayOfWeek: weekDays[dayOfWeek] };
+    return { path: null, text: null, dayOfWeek: weekDays[dayOfWeek] };
 }
 
 // 3열 그리드 레이아웃 생성
@@ -181,7 +215,7 @@ const grid = container.createEl('div', { cls: 'daily-comparison-grid' });
 
 // 각 연도별로 열 생성
 for (const year of years) {
-    const result = findDailyNote(year);
+    const result = await findDailyNote(year);
 
     // 열 div 생성
     const column = grid.createEl('div', { cls: 'daily-comparison-column' });
@@ -196,7 +230,7 @@ for (const year of years) {
     const contentDiv = column.createEl('div');
 
     if (result.path) {
-        // 노트 파일 읽기
+        // 마크다운 파일 렌더링 (2023년 이상)
         const file = app.vault.getAbstractFileByPath(result.path);
         if (file) {
             const content = await app.vault.read(file);
@@ -219,6 +253,14 @@ for (const year of years) {
             // HTML 삽입
             contentDiv.innerHTML = html;
         }
+    } else if (result.text) {
+        // JSON 텍스트 렌더링 (2022년 이하)
+        let html = result.text
+            .replace(/==/g, '<mark>')  // ==텍스트== -> <mark>텍스트</mark> (첫 번째)
+            .replace(/==/g, '</mark>') // 두 번째 == -> </mark>
+            .replace(/\n/g, '<br>');
+
+        contentDiv.innerHTML = '<p>' + html + '</p>';
     } else {
         contentDiv.createEl('div', {
             cls: 'daily-comparison-no-note',
