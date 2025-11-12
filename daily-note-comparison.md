@@ -82,7 +82,7 @@ const day = today.format('DD');
 const dayNoZero = today.format('D');
 
 // 비교할 연도들
-const years = [2025, 2024, 2023, 2022, 2021, 2020];
+const years = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017];
 
 // 요일 매핑 (영어 -> 한글)
 const weekDays = {
