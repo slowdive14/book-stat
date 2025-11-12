@@ -135,37 +135,75 @@ async function findDailyNote(year) {
         if (file) {
             const content = await app.vault.read(file);
 
-            // 라인 단위로 처리하여 JSON 객체만 추출
-            let cleanedContent = content
-                .split('\n')
-                .map(line => line.trim())  // 각 줄의 앞뒤 공백 제거
-                .filter(line => {
-                    // 빈 줄, 월 헤더(##), 구분선(---) 제거
-                    return line &&
-                           !line.startsWith('##') &&
-                           !line.match(/^-+$/);  // 하이픈만 있는 줄
-                })
-                .join('');  // 줄바꿈 없이 합치기
+            // 디버깅: 원본 파일 정보
+            console.log(`[${year}] 파일 읽기 성공, 길이: ${content.length}`);
 
-            // JSON 객체들 분리 (} { 사이에 공백이나 줄바꿈이 있어도 처리)
-            const jsonArray = '[' + cleanedContent.replace(/\}\s*\{/g, '},{') + ']';
+            // 각 줄 처리하여 유효한 JSON 라인만 추출
+            const lines = content.split('\n');
+            const jsonLines = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // 빈 줄이나 마크다운 헤더가 아닌 줄만 처리
+                if (line && !line.startsWith('#') && !line.match(/^-+$/)) {
+                    // JSON 객체로 보이는 줄 ('{' 로 시작)
+                    if (line.startsWith('{')) {
+                        jsonLines.push(line);
+                    }
+                }
+            }
+
+            console.log(`[${year}] JSON 라인 수: ${jsonLines.length}`);
+
+            if (jsonLines.length === 0) {
+                console.warn(`[${year}] JSON 객체를 찾을 수 없음`);
+                return { path: null, text: null, dayOfWeek: weekDays[dayOfWeek] };
+            }
+
+            // 각 JSON 라인을 배열로 변환
+            const jsonArray = '[' + jsonLines.join(',') + ']';
+
+            console.log(`[${year}] JSON 배열 생성, 길이: ${jsonArray.length}`);
+            console.log(`[${year}] 첫 500자: ${jsonArray.substring(0, 500)}`);
 
             try {
                 const entries = JSON.parse(jsonArray);
+                console.log(`[${year}] 파싱 성공! 엔트리 수: ${entries.length}`);
+
                 const dateKey = `${year}${month}${day}`;
+                console.log(`[${year}] 찾는 날짜: ${dateKey}`);
+
                 const entry = entries.find(e => e.date_key === dateKey);
 
                 if (entry) {
+                    console.log(`[${year}] 날짜 ${dateKey} 찾음!`);
                     return {
                         path: null,
                         text: entry.text,
                         dayOfWeek: weekDays[dayOfWeek]
                     };
+                } else {
+                    console.log(`[${year}] 날짜 ${dateKey} 없음. 사용 가능한 날짜 예시:`,
+                        entries.slice(0, 5).map(e => e.date_key));
                 }
             } catch (e) {
-                console.error('JSON parsing error for', year, ':', e);
-                console.error('Tried to parse:', jsonArray.substring(0, 300) + '...');
+                console.error(`[${year}] JSON 파싱 에러:`, e.message);
+                console.error(`[${year}] 에러 위치:`, e.stack);
+                console.error(`[${year}] 파싱 시도한 JSON (첫 500자):`, jsonArray.substring(0, 500));
+
+                // 각 라인을 개별적으로 파싱 시도하여 문제 라인 찾기
+                for (let i = 0; i < jsonLines.length; i++) {
+                    try {
+                        JSON.parse(jsonLines[i]);
+                    } catch (lineError) {
+                        console.error(`[${year}] 라인 ${i} 파싱 실패:`, jsonLines[i].substring(0, 100));
+                        console.error(`[${year}] 에러:`, lineError.message);
+                    }
+                }
             }
+        } else {
+            console.warn(`[${year}] 파일 없음: ${jsonFilePath}`);
         }
     }
 
