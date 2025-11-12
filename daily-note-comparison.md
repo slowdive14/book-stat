@@ -82,7 +82,7 @@ const day = today.format('DD');
 const dayNoZero = today.format('D');
 
 // 비교할 연도들
-const years = [2025, 2024, 2023];
+const years = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017];
 
 // 요일 매핑 (영어 -> 한글)
 const weekDays = {
@@ -91,41 +91,123 @@ const weekDays = {
 };
 
 // 각 연도별로 노트 찾기 함수
-function findDailyNote(year) {
+async function findDailyNote(year) {
     const baseFolder = "일간노트";
 
     // 해당 연도의 같은 날짜로 moment 객체 생성 (요일 계산을 위해)
     const targetDate = moment(`${year}-${month}-${day}`, 'YYYY-MM-DD');
     const dayOfWeek = targetDate.format('ddd');
 
-    // 가능한 폴더 패턴들
-    const folderPatterns = [
-        `${baseFolder}/${year}년/${monthNoZero}월`,    // 일간노트/2024년/1월
-        `${baseFolder}/${year}년/${month}월`,           // 일간노트/2024년/01월
-        `${baseFolder}/${year}년/${year}년 ${monthNoZero}월`, // 일간노트/2025년/2025년 1월
-        `${baseFolder}/${year}년`,                      // 일간노트/2024년
-    ];
+    // 2023년 이상: 마크다운 파일 찾기
+    if (year >= 2023) {
+        // 가능한 폴더 패턴들
+        const folderPatterns = [
+            `${baseFolder}/${year}년/${monthNoZero}월`,
+            `${baseFolder}/${year}년/${month}월`,
+            `${baseFolder}/${year}년/${year}년 ${monthNoZero}월`,
+            `${baseFolder}/${year}년`,
+        ];
 
-    // 가능한 파일명 패턴들
-    const filePatterns = [
-        `${year}${month}${day}.md`,                     // 20240120.md
-        `${year}${month}${day}${weekDays[dayOfWeek]}.md`, // 20240120월.md
-        `${year}-${month}-${day}.md`,                   // 2024-01-20.md
-        `${year}-${month}-${day}${weekDays[dayOfWeek]}.md`, // 2024-01-20월.md
-    ];
+        // 가능한 파일명 패턴들
+        const filePatterns = [
+            `${year}${month}${day}.md`,
+            `${year}${month}${day}${weekDays[dayOfWeek]}.md`,
+            `${year}-${month}-${day}.md`,
+            `${year}-${month}-${day}${weekDays[dayOfWeek]}.md`,
+        ];
 
-    // 모든 조합 시도
-    for (const folder of folderPatterns) {
-        for (const fileName of filePatterns) {
-            const path = `${folder}/${fileName}`;
-            const file = app.vault.getAbstractFileByPath(path);
-            if (file) {
-                return { path, dayOfWeek: weekDays[dayOfWeek] };
+        // 모든 조합 시도
+        for (const folder of folderPatterns) {
+            for (const fileName of filePatterns) {
+                const path = `${folder}/${fileName}`;
+                const file = app.vault.getAbstractFileByPath(path);
+                if (file) {
+                    return { path, text: null, dayOfWeek: weekDays[dayOfWeek] };
+                }
             }
         }
     }
+    // 2022년 이하: JSON 파일에서 찾기
+    else {
+        const jsonFilePath = `${baseFolder}/2022년 이전/${year}.md`;
+        const file = app.vault.getAbstractFileByPath(jsonFilePath);
 
-    return { path: null, dayOfWeek: weekDays[dayOfWeek] };
+        if (file) {
+            const content = await app.vault.read(file);
+
+            // 디버깅: 원본 파일 정보
+            console.log(`[${year}] 파일 읽기 성공, 길이: ${content.length}`);
+
+            // 각 줄 처리하여 유효한 JSON 라인만 추출
+            const lines = content.split('\n');
+            const jsonLines = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // 빈 줄이나 마크다운 헤더가 아닌 줄만 처리
+                if (line && !line.startsWith('#') && !line.match(/^-+$/)) {
+                    // JSON 객체로 보이는 줄 ('{' 로 시작)
+                    if (line.startsWith('{')) {
+                        jsonLines.push(line);
+                    }
+                }
+            }
+
+            console.log(`[${year}] JSON 라인 수: ${jsonLines.length}`);
+
+            if (jsonLines.length === 0) {
+                console.warn(`[${year}] JSON 객체를 찾을 수 없음`);
+                return { path: null, text: null, dayOfWeek: weekDays[dayOfWeek] };
+            }
+
+            // 각 JSON 라인을 배열로 변환
+            const jsonArray = '[' + jsonLines.join(',') + ']';
+
+            console.log(`[${year}] JSON 배열 생성, 길이: ${jsonArray.length}`);
+            console.log(`[${year}] 첫 500자: ${jsonArray.substring(0, 500)}`);
+
+            try {
+                const entries = JSON.parse(jsonArray);
+                console.log(`[${year}] 파싱 성공! 엔트리 수: ${entries.length}`);
+
+                const dateKey = `${year}${month}${day}`;
+                console.log(`[${year}] 찾는 날짜: ${dateKey}`);
+
+                const entry = entries.find(e => e.date_key === dateKey);
+
+                if (entry) {
+                    console.log(`[${year}] 날짜 ${dateKey} 찾음!`);
+                    return {
+                        path: null,
+                        text: entry.text,
+                        dayOfWeek: weekDays[dayOfWeek]
+                    };
+                } else {
+                    console.log(`[${year}] 날짜 ${dateKey} 없음. 사용 가능한 날짜 예시:`,
+                        entries.slice(0, 5).map(e => e.date_key));
+                }
+            } catch (e) {
+                console.error(`[${year}] JSON 파싱 에러:`, e.message);
+                console.error(`[${year}] 에러 위치:`, e.stack);
+                console.error(`[${year}] 파싱 시도한 JSON (첫 500자):`, jsonArray.substring(0, 500));
+
+                // 각 라인을 개별적으로 파싱 시도하여 문제 라인 찾기
+                for (let i = 0; i < jsonLines.length; i++) {
+                    try {
+                        JSON.parse(jsonLines[i]);
+                    } catch (lineError) {
+                        console.error(`[${year}] 라인 ${i} 파싱 실패:`, jsonLines[i].substring(0, 100));
+                        console.error(`[${year}] 에러:`, lineError.message);
+                    }
+                }
+            }
+        } else {
+            console.warn(`[${year}] 파일 없음: ${jsonFilePath}`);
+        }
+    }
+
+    return { path: null, text: null, dayOfWeek: weekDays[dayOfWeek] };
 }
 
 // 3열 그리드 레이아웃 생성
@@ -181,7 +263,7 @@ const grid = container.createEl('div', { cls: 'daily-comparison-grid' });
 
 // 각 연도별로 열 생성
 for (const year of years) {
-    const result = findDailyNote(year);
+    const result = await findDailyNote(year);
 
     // 열 div 생성
     const column = grid.createEl('div', { cls: 'daily-comparison-column' });
@@ -196,19 +278,37 @@ for (const year of years) {
     const contentDiv = column.createEl('div');
 
     if (result.path) {
-        // 노트 파일 읽기
+        // 마크다운 파일 렌더링 (2023년 이상)
         const file = app.vault.getAbstractFileByPath(result.path);
         if (file) {
             const content = await app.vault.read(file);
 
-            // Obsidian API를 통한 마크다운 렌더링
-            await app.workspace.activeLeaf.view.renderer.renderMarkdown(
-                content,
-                contentDiv,
-                result.path,
-                dv.component
-            );
+            // 간단한 마크다운 -> HTML 변환
+            let html = content
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            html = '<p>' + html + '</p>';
+
+            // HTML 삽입
+            contentDiv.innerHTML = html;
         }
+    } else if (result.text) {
+        // JSON 텍스트 렌더링 (2022년 이하)
+        let html = result.text
+            .replace(/==/g, '<mark>')  // ==텍스트== -> <mark>텍스트</mark> (첫 번째)
+            .replace(/==/g, '</mark>') // 두 번째 == -> </mark>
+            .replace(/\n/g, '<br>');
+
+        contentDiv.innerHTML = '<p>' + html + '</p>';
     } else {
         contentDiv.createEl('div', {
             cls: 'daily-comparison-no-note',
